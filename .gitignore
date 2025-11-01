@@ -1,0 +1,13 @@
+# Entorno virtual
+venv/
+
+# Carpetas de datos y temporales
+clean_data/
+temp_uploads/
+
+# Archivos de caché de Python
+__pycache__/
+*.pyc
+
+# Archivos de variables de entorno (para contraseñas, etc.)
+.env
