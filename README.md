@@ -23,7 +23,6 @@ Sigue estos pasos para configurar el proyecto en tu máquina local.
     ```bash
     pip install -r requirements.txt
     ```
-    Nota **IMPORTATE** cuando te cree la carpeta env dentro de esa crea una carpeta llamada data y dentro de ella guarda los datasets.
 
 ¡Y con eso!
 
