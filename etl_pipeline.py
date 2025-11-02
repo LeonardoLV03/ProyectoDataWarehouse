@@ -27,21 +27,21 @@ def extract_data(csv_history_path, csv_measures_path, json_air_path):
 
 
 def transform_data(df_history, df_measures, df_json):
-    # Limpieza y transformaciones básicas
+     # Limpieza y transformaciones básicas
     print("Empezando transformaciones...")
     
     try:
         df_history['DATETIME_LOCAL'] = pd.to_datetime(df_history['DATETIME_LOCAL'], errors='coerce')
         df_history['AQI'] = pd.to_numeric(df_history['AQI'], errors='coerce')
         
-        # rellenamos los datos nulos del AQI con el promedio
-        media_aqi = df_history['AQI'].mean()
-        df_history['AQI'] = df_history['AQI'].fillna(media_aqi) 
+        # Eliminamos las filas que tengan AQI nulo
+        df_history.dropna(subset=['AQI'], inplace=True)
+        # Eliminamos county_name
+        df_history.drop(columns=['COUNTY_NAME'], inplace=True, errors='ignore')
         
         # cambiamos todos los nombres a minúsculas
         df_history['CITY_NAME'] = df_history['CITY_NAME'].str.lower()
         df_history['STATE_NAME'] = df_history['STATE_NAME'].str.lower()
-        df_history['COUNTY_NAME'] = df_history['COUNTY_NAME'].str.lower()
 
         print("Proceso de limpieza y transformacion en CSV listo")
 
