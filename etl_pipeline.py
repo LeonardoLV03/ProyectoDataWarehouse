@@ -10,11 +10,13 @@ def extract_data(csv_history_path, csv_measures_path, json_air_path):
         df_measures = pd.read_excel(csv_measures_path)
         print(f"Cargadas {len(df_measures)} mediciones")
 
-        with open(json_air_path, 'r', encoding='utf-8') as f:
+        with open(json_air_path, 'r') as f:
             data_json = json.load(f)
-        
-        df_air_json = pd.DataFrame(data_json['data'])
-        print(f"Procesados {len(df_air_json)} registros JSON")
+
+        column_names = [col['name'] for col in data_json['meta']['view']['columns']]
+
+        json_air_path_meta = pd.DataFrame(data_json['data'], columns=column_names)
+        df_air_json = json_air_path_meta.iloc[:, 8:]
         
         return df_history, df_measures, df_air_json
     
@@ -25,7 +27,6 @@ def extract_data(csv_history_path, csv_measures_path, json_air_path):
         print(f"Algo salió mal cargando los datos: {e}")
         return None, None, None
 
-
 def transform_data(df_history, df_measures, df_json):
     # Limpieza y transformaciones básicas
     print("Empezando transformaciones...")
@@ -34,14 +35,14 @@ def transform_data(df_history, df_measures, df_json):
         df_history['DATETIME_LOCAL'] = pd.to_datetime(df_history['DATETIME_LOCAL'], errors='coerce')
         df_history['AQI'] = pd.to_numeric(df_history['AQI'], errors='coerce')
         
-        # rellenamos los datos nulos del AQI con el promedio
-        media_aqi = df_history['AQI'].mean()
-        df_history['AQI'] = df_history['AQI'].fillna(media_aqi) 
+        # Eliminamos las filas que tengan AQI nulo
+        df_history.dropna(subset=['AQI'], inplace=True)
+        # Eliminamos county_name
+        df_history.drop(columns=['COUNTY_NAME'], inplace=True, errors='ignore')
         
         # cambiamos todos los nombres a minúsculas
         df_history['CITY_NAME'] = df_history['CITY_NAME'].str.lower()
         df_history['STATE_NAME'] = df_history['STATE_NAME'].str.lower()
-        df_history['COUNTY_NAME'] = df_history['COUNTY_NAME'].str.lower()
 
         print("Proceso de limpieza y transformacion en CSV listo")
 
@@ -50,24 +51,30 @@ def transform_data(df_history, df_measures, df_json):
 
     # Procesar measures
     try:
-        df_measures['Value'] = pd.to_numeric(df_measures['Value'], errors='coerce')
-        df_measures['StateName'] = df_measures['StateName'].str.lower()
-        df_measures['CountyName'] = df_measures['CountyName'].str.lower()
+        # Transformaciones a realizar:
+            #Mantener solo los registros que tratan con los dias
+            #Eliminar columnas: County fips, monitor only, state fips, unit, unit name
+        filtros = ['Percent of days with PM2.5 levels over the National Ambient Air Quality Standard (monitor and modeled data)', 
+        'Number of days with maximum 8-hour average ozone concentration over the National Ambient Air Quality Standard (monitor and modeled data)']
+        df_measures = df_measures[df_measures['MeasureName'].isin(filtros)]
+        #df_measures.groupby('MeasureName').count()
+        mask = df_measures['MeasureName'] == 'Percent of days with PM2.5 levels over the National Ambient Air Quality Standard (monitor and modeled data)'
+        df_measures.loc[mask, 'Value'] = ((df_measures.loc[mask, 'Value'] / 100) * 365).round()
+        df_measures.drop(columns=['CountyFips', 'StateFips', 'MonitorOnly', 'Unit', 'UnitName'], inplace=True)
+        df_measures
+        #df_measures['Value'] = pd.to_numeric(df_measures['Value'], errors='coerce')
+        #df_measures['StateName'] = df_measures['StateName'].str.lower()
+        #df_measures['CountyName'] = df_measures['CountyName'].str.lower()
         print("Proceso de limpieza y transformacion en XLSX listo")
     except Exception as e:
         print(f"Error con la limpieza y transformacion en el archivo XLSX: {e}")
         
     # Procesar JSON - renombrar columnas
     try:
-        cols = ['sid', 'id', 'position', 'created_at', 'created_meta', 
-                'updated_at', 'updated_meta', 'meta', 'indicator_id', 
-                'indicator_data_id', 'name', 'measure', 'unit', 
-                'geo_type_name', 'geo_join_id', 'geo_place_name', 
-                'time_period', 'start_date', 'data_value', 'message']
-        
-        df_json.columns = cols
-        df_json['data_value'] = pd.to_numeric(df_json['data_value'], errors='coerce')
-        df_json['start_date'] = pd.to_datetime(df_json['start_date'], errors='coerce')
+        df_json.drop(columns=['Message','Geo Join ID','Indicator ID'],inplace=True)
+        df_json['Start_Date'] = pd.to_datetime(df_json['Start_Date'])
+        df_json['Data Value'] = pd.to_datetime(df_json['Data Value'])
+
         print("Proceso de limpieza y transformacion en JSON listo")
     except Exception as e:
         print(f"Problema con las columnas del JSON: {e}")

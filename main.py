@@ -2,7 +2,7 @@ import uvicorn
 import uuid
 import os
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
-from typing import List, Dict
+from typing import  Dict
 
 from etl_pipeline import run_full_pipeline
 
